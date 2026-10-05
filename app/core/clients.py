@@ -6,10 +6,11 @@ import httpx
 from fastapi import Depends, Request
 from redis.asyncio import Redis
 
-from app.config import settings
+from app.core.config import settings
 
 
 def create_redis() -> Redis:
+    """Build the Redis client. It connects lazily on first use."""
     return Redis.from_url(
         settings.redis_url,
         decode_responses=True,
@@ -19,15 +20,20 @@ def create_redis() -> Redis:
 
 
 def create_http_client() -> httpx.AsyncClient:
+    """Build the HTTP client used for RevenueCat requests."""
     return httpx.AsyncClient(timeout=settings.revenuecat_timeout_seconds)
 
 
 def get_redis(request: Request) -> Redis:
-    return request.app.state.redis
+    """Dependency returning the app wide Redis client."""
+    redis: Redis = request.app.state.redis
+    return redis
 
 
 def get_http_client(request: Request) -> httpx.AsyncClient:
-    return request.app.state.http_client
+    """Dependency returning the app wide HTTP client."""
+    client: httpx.AsyncClient = request.app.state.http_client
+    return client
 
 
 RedisClient = Annotated[Redis, Depends(get_redis)]

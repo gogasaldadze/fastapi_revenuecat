@@ -22,15 +22,25 @@ class QuotaBackendError(Exception):
 
 
 def utc_day(now: datetime | None = None) -> str:
+    """The UTC calendar day as YYYY-MM-DD."""
     return (now or datetime.now(UTC)).astimezone(UTC).date().isoformat()
 
 
 def quota_key(user_id: str, day: str) -> str:
+    """Redis key for one user and one day."""
     return f"{QUOTA_PREFIX}:{user_id}:{day}"
 
 
 async def consume_units(redis: Redis, user_id: str, units: int, limit: int) -> bool:
-    """Charge `units`. Returns False, and refunds, if that goes over `limit`."""
+    """Charge `units` against today's counter.
+
+    Returns:
+        True if the charge fits under `limit`. False otherwise, and the units
+        are refunded.
+
+    Raises:
+        QuotaBackendError: Redis is unreachable or failed.
+    """
     key = quota_key(user_id, utc_day())
     try:
         async with redis.pipeline(transaction=True) as pipe:
@@ -40,11 +50,11 @@ async def consume_units(redis: Redis, user_id: str, units: int, limit: int) -> b
     except Exception as exc:
         raise QuotaBackendError(str(exc)) from exc
 
-    if total <= limit:
+    if int(total) <= limit:
         return True
 
     try:
         await redis.decrby(key, units)
     except Exception as exc:
-        logger.warning("Quota refund failed for %s: %s", user_id, exc)
+        logger.warning("Quota refund failed", extra={"user_id": user_id, "error": str(exc)})
     return False

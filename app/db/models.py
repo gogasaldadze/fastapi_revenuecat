@@ -1,15 +1,19 @@
+"""Database models."""
+
 import uuid
 from datetime import datetime
 
 from sqlalchemy import BigInteger, DateTime, Index, Integer, String, Text, false, func, text
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.db import Base
+from app.db.base import Base
 
 APP_USER_ID_MAX_LENGTH = 255
 
 
 class User(Base):
+    """An account in your app, optionally bound to one RevenueCat app user id."""
+
     __tablename__ = "users"
     __table_args__ = (
         # One RevenueCat id per user, many users without one.

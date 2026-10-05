@@ -1,6 +1,6 @@
 """Minimal bearer token auth.
 
-This exists so the template runs on its own. Swap get_current_user for your
+This exists so the template runs on its own. Swap `get_current_user` for your
 own auth and keep its contract: return the User row or raise 401.
 """
 
@@ -9,28 +9,32 @@ from datetime import timedelta
 from typing import Annotated
 
 import jwt
-from fastapi import Depends, HTTPException
+from fastapi import Depends
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
-from app.config import settings
-from app.db import DbSession
-from app.models import User
-from app.timeutil import utcnow
+from app.core.config import settings
+from app.core.errors import AppError
+from app.core.timeutil import utcnow
+from app.db.models import User
+from app.db.session import DbSession
 
 bearer_scheme = HTTPBearer(auto_error=False)
 
-UNAUTHORIZED = HTTPException(
-    status_code=401, detail="Not authenticated", headers={"WWW-Authenticate": "Bearer"}
-)
+
+def _unauthorized() -> AppError:
+    return AppError(
+        401, "unauthorized", "Not authenticated", headers={"WWW-Authenticate": "Bearer"}
+    )
 
 
 def _secret() -> str:
     if not settings.jwt_secret:
-        raise HTTPException(status_code=503, detail="Auth not configured")
+        raise AppError(503, "auth_not_configured", "Auth is not configured")
     return settings.jwt_secret
 
 
 def create_access_token(user_id: uuid.UUID) -> str:
+    """Issue a signed token whose subject is the user id."""
     now = utcnow()
     claims = {
         "sub": str(user_id),
@@ -41,6 +45,11 @@ def create_access_token(user_id: uuid.UUID) -> str:
 
 
 def decode_user_id(token: str) -> uuid.UUID:
+    """Validate a token and return its user id.
+
+    Raises:
+        AppError: 401 for a bad, expired or malformed token.
+    """
     try:
         claims = jwt.decode(
             token,
@@ -48,20 +57,21 @@ def decode_user_id(token: str) -> uuid.UUID:
             algorithms=[settings.jwt_algorithm],
             options={"require": ["sub", "exp"]},
         )
-        return uuid.UUID(claims["sub"])
-    except (jwt.InvalidTokenError, ValueError, TypeError) as exc:
-        raise UNAUTHORIZED from exc
+        return uuid.UUID(str(claims["sub"]))
+    except (jwt.InvalidTokenError, ValueError) as exc:
+        raise _unauthorized() from exc
 
 
 async def get_current_user(
     db: DbSession,
     credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer_scheme)],
 ) -> User:
+    """Dependency returning the authenticated user, or raising 401."""
     if credentials is None:
-        raise UNAUTHORIZED
+        raise _unauthorized()
     user = await db.get(User, decode_user_id(credentials.credentials))
     if user is None:
-        raise UNAUTHORIZED
+        raise _unauthorized()
     return user
 
 

@@ -1,11 +1,20 @@
+"""Application settings, read from environment variables and an optional .env file."""
+
+from typing import Literal
+
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
+    """All runtime configuration. See docs/configuration.md for each field."""
+
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     debug: bool = False
+    log_level: str = "INFO"
+    log_format: Literal["json", "text"] = "json"
+
     database_url: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/app"
     redis_url: str = "redis://localhost:6379/0"
 
@@ -30,7 +39,7 @@ class Settings(BaseSettings):
     @field_validator("database_url")
     @classmethod
     def use_async_driver(cls, value: str) -> str:
-        # Railway and Heroku hand out plain postgres:// URLs.
+        """Rewrite plain postgres URLs, as Railway and Heroku provide them, for asyncpg."""
         for prefix in ("postgres://", "postgresql://"):
             if value.startswith(prefix):
                 return "postgresql+asyncpg://" + value.removeprefix(prefix)
@@ -39,13 +48,15 @@ class Settings(BaseSettings):
     @field_validator("feature_weights")
     @classmethod
     def positive_weights(cls, value: dict[str, int]) -> dict[str, int]:
-        bad = [name for name, weight in value.items() if weight < 1]
+        """Reject zero or negative weights, which would make a feature free."""
+        bad = sorted(name for name, weight in value.items() if weight < 1)
         if bad:
             raise ValueError(f"feature weights must be at least 1: {bad}")
         return value
 
     @property
     def sandbox_allowed(self) -> bool:
+        """Sandbox purchases count only in debug or when explicitly allowed."""
         return self.debug or self.allow_sandbox_subscriptions
 
 
