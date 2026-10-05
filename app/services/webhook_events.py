@@ -44,8 +44,10 @@ class Bucket(StrEnum):
 
 
 SYNC_EVENTS = frozenset({"INITIAL_PURCHASE", "RENEWAL", "PRODUCT_CHANGE", "UNCANCELLATION"})
-EXPIRE_EVENTS = frozenset({"EXPIRATION", "SUBSCRIPTION_PAUSED"})
-INFO_ONLY_EVENTS = frozenset({"CANCELLATION", "BILLING_ISSUE"})
+EXPIRE_EVENTS = frozenset({"EXPIRATION"})
+# All three leave access in place until the current period ends. RevenueCat
+# sends EXPIRATION when it actually does.
+INFO_ONLY_EVENTS = frozenset({"CANCELLATION", "BILLING_ISSUE", "SUBSCRIPTION_PAUSED"})
 
 
 def classify(event_type: str) -> Bucket:

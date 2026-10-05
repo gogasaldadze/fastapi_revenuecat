@@ -115,7 +115,7 @@ async def test_sync_without_expiration_is_lifetime(client, session_maker):
     assert row.premium_expires_at is None
 
 
-@pytest.mark.parametrize("event_type", ["EXPIRATION", "SUBSCRIPTION_PAUSED"])
+@pytest.mark.parametrize("event_type", ["EXPIRATION"])
 async def test_expire_events_revoke_premium(client, session_maker, event_type):
     user = await make_user(session_maker, rc_app_user_id="rc_1", is_premium=True)
     resp = await client.post(URL, json=payload(event_type), headers=bearer())
@@ -123,7 +123,7 @@ async def test_expire_events_revoke_premium(client, session_maker, event_type):
     assert (await reload(session_maker, user)).is_premium is False
 
 
-@pytest.mark.parametrize("event_type", ["CANCELLATION", "BILLING_ISSUE"])
+@pytest.mark.parametrize("event_type", ["CANCELLATION", "BILLING_ISSUE", "SUBSCRIPTION_PAUSED"])
 async def test_info_only_events_keep_access(client, session_maker, event_type):
     user = await make_user(session_maker, rc_app_user_id="rc_1", is_premium=True)
     resp = await client.post(URL, json=payload(event_type), headers=bearer())
@@ -281,6 +281,8 @@ def test_classify_buckets():
     assert webhook_events.classify("INITIAL_PURCHASE") is webhook_events.Bucket.SYNC
     assert webhook_events.classify("EXPIRATION") is webhook_events.Bucket.EXPIRE
     assert webhook_events.classify("BILLING_ISSUE") is webhook_events.Bucket.INFO_ONLY
+    assert webhook_events.classify("SUBSCRIPTION_PAUSED") is webhook_events.Bucket.INFO_ONLY
+    assert webhook_events.classify("TEST") is webhook_events.Bucket.UNKNOWN
     assert webhook_events.classify("") is webhook_events.Bucket.UNKNOWN
 
 

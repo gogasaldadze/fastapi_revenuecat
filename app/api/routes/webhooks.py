@@ -58,9 +58,11 @@ async def revenuecat_webhook(
     redis: RedisClient,
     authorization: Annotated[str, Header()] = "",
 ) -> WebhookAck:
-    """Auth problems get 401 or 503. Anything else is logged and answered with 200,
-    because RevenueCat retries failed deliveries for about a day and a broken
-    handler would fail the same way every time."""
+    """Auth problems get 401 or 503. Anything else is logged and answered with 200.
+
+    RevenueCat retries a failed delivery five times over about two and a half
+    hours, and a broken handler would fail the same way every time.
+    """
     verify_authorization(authorization)
 
     try:
