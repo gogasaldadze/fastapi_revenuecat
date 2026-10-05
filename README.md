@@ -22,7 +22,7 @@ Subscription backends tend to fail in the same few ways. This template is built 
 
 * `POST /webhooks/revenuecat` with constant time secret check, idempotent processing by event id, stale event protection and forward only expiry
 * Entitlement check against the RevenueCat REST API with clear fail open and fail closed rules and a Redis cache
-* `POST /subscription/sync` that binds a RevenueCat id to a user only after RevenueCat confirms it
+* `POST /subscription/sync` that binds the signed in user's own RevenueCat id, or one RevenueCat aliases to it, only after RevenueCat confirms it is active
 * `require_premium` and `charge(feature)` dependencies, the second with weighted daily quotas in Redis
 * A reconcile job that reports drift between your database and RevenueCat
 * Postgres with async SQLAlchemy 2 and Alembic, Redis, JSON logs, one error format, `/health` and `/health/ready`
@@ -83,7 +83,7 @@ _ = try await Purchases.shared.restorePurchases()
 try await api.syncSubscription()   // always, after every restore
 ```
 
-`syncSubscription()` posts `{"app_user_id": Purchases.shared.appUserID}` to `/subscription/sync`. The full version, with the delegate that syncs when an entitlement turns on, is in [docs/ios_integration.md](docs/ios_integration.md).
+`syncSubscription()` posts `{"app_user_id": Purchases.shared.appUserID}` to `/subscription/sync`. By default the server only binds the signed in user's own id, or an id RevenueCat aliases to it, so `logIn` with your user id is required. The full version, with the delegate that syncs when an entitlement turns on, is in [docs/ios_integration.md](docs/ios_integration.md).
 
 ## Using it in your routes
 
@@ -157,8 +157,8 @@ docs/
 **Do I need the webhook if premium checks call RevenueCat anyway?**
 Yes. It keeps the stored state current for outages, invalidates the cache the moment something changes, records every event, and handles TRANSFER.
 
-**Can I use my own user ids as RevenueCat app user ids?**
-Yes, and you should. Call `Purchases.logIn` with your user id before showing a paywall. Anonymous ids also work.
+**Can I use anonymous RevenueCat ids?**
+Use your own user ids: call `Purchases.logIn` with your user id before showing a paywall. The sync refuses ids that do not belong to the signed in user. `REVENUECAT_REQUIRE_USER_ID_MATCH=false` accepts anonymous ids for apps that are migrating, at the cost described in [docs/security.md](docs/security.md).
 
 **What happens if Redis goes down?**
 Entitlement checks go straight to RevenueCat. Features in `FAIL_OPEN_FEATURES` keep working; other metered features return 503. Nothing becomes premium because of it.
@@ -174,7 +174,6 @@ Not yet. It answers "premium or not" for one entitlement. See the roadmap.
 
 ## Roadmap
 
-* A setting that requires `app_user_id` to equal the caller's user id in `/subscription/sync`
 * Several entitlements, with tiers derived from webhook product ids
 * Handle `SUBSCRIPTION_EXTENDED`, and treat refunds (CANCELLATION with a refund reason) as immediate expiry
 * Support for more than one RevenueCat project on one server

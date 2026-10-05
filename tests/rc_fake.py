@@ -73,3 +73,13 @@ class FakeRevenueCat:
             raise httpx.ConnectError("connection refused", request=request)
         status, body = self.responses.get(app_user_id, (404, {"code": 7259}))
         return httpx.Response(status, json=body if body is not None else {})
+
+
+def with_ids(body: dict, *, original: str | None = None, aliases: list[str] | None = None) -> dict:
+    """Add RevenueCat identity fields to a subscriber payload."""
+    sub = body["subscriber"]
+    if original is not None:
+        sub["original_app_user_id"] = original
+    if aliases is not None:
+        sub["aliases"] = aliases
+    return body

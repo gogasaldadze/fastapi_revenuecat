@@ -33,6 +33,7 @@ All settings come from environment variables. A `.env` file in the working direc
 | `REVENUECAT_API_URL` | `https://api.revenuecat.com/v1` | no | Override for tests or a proxy. |
 | `REVENUECAT_TIMEOUT_SECONDS` | `10` | no | Timeout per REST request. |
 | `REVENUECAT_RETRY_DELAY_SECONDS` | `0.5` | no | Pause before the single retry of a failed REST read. |
+| `REVENUECAT_REQUIRE_USER_ID_MATCH` | `true` | no | `/subscription/sync` only binds the signed in user's id, or an id RevenueCat lists with that user's id as its original id or an alias. Turning it off lets any active id be bound and is only meant for migrating apps on anonymous ids; see [security.md](security.md). |
 | `ALLOW_SANDBOX_SUBSCRIPTIONS` | `false` | no | Count sandbox purchases outside debug. Useful for a staging server that TestFlight builds talk to. |
 | `ENTITLEMENT_CACHE_TTL_SECONDS` | `300` | no | How long a REST result is cached. Active results are never cached past their expiry. |
 | `STORE_WEBHOOK_PAYLOADS` | `true` | no | Keep the raw JSON of each webhook in `subscription_events.payload`. The row itself is always stored because it makes processing idempotent. |

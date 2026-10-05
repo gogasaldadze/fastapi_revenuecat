@@ -6,7 +6,7 @@ The app side with the RevenueCat Swift SDK. Android follows the same order with 
 
 1. Configure the SDK before anything calls `logIn`.
 2. Call `logIn` with your own user id before showing a paywall, so purchases attach to that id and not to an anonymous one.
-3. Call `/subscription/sync` after every purchase and every restore.
+3. Call `/subscription/sync` after every purchase and every restore. By default the server only accepts the signed in user's own id, so step 2 is required.
 4. Sync again whenever the entitlement turns from inactive to active outside a purchase (renewal while the app was closed, family sharing, another device).
 5. Never cache `isPremium` on the device. Show premium UI from `CustomerInfo`, and let the server decide what the server unlocks.
 
@@ -37,7 +37,7 @@ func didSignIn(userId: String) async throws {
 }
 ```
 
-If `logIn` runs before `configure`, it does nothing and purchases land on an anonymous id. The server can still bind an anonymous id through sync, but your own id is easier to support and to audit.
+If `logIn` runs before `configure`, it does nothing and purchases land on an anonymous id. A purchase made on an anonymous id before `logIn` still works: `logIn` aliases the anonymous id to your user id in RevenueCat, and the server accepts an id that RevenueCat aliases to the signed in user. Any other id is refused unless the server runs with `REVENUECAT_REQUIRE_USER_ID_MATCH=false`.
 
 ## Sync with the server
 
@@ -65,7 +65,7 @@ final class SubscriptionAPI {
 }
 ```
 
-The endpoint is idempotent. Calling it too often costs one RevenueCat request; calling it too rarely leaves the server behind.
+The endpoint is idempotent. Calling it too often costs one RevenueCat request; calling it too rarely leaves the server behind. Sending `appUserID` is optional by default, since the server checks the signed in user's id; sending it helps when a purchase was made before `logIn`.
 
 ## Purchase and restore
 

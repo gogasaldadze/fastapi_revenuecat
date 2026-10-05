@@ -1,11 +1,22 @@
+"""Sync in legacy mode, where any active id may be bound. See test_sync_strict.py
+for the default, where the id must belong to the signed in user."""
+
 import logging
 from datetime import UTC, datetime, timedelta
 
+import pytest
+
+from app.core.config import settings
 from app.services.entitlement_cache import cache_key
 from tests.conftest import WEBHOOK_SECRET, auth, make_user, reload
 from tests.rc_fake import active, expired
 
 URL = "/subscription/sync"
+
+
+@pytest.fixture(autouse=True)
+def legacy_mode(monkeypatch):
+    monkeypatch.setattr(settings, "revenuecat_require_user_id_match", False)
 
 
 async def test_requires_auth(client):

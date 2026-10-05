@@ -14,6 +14,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 * 503 for temporary webhook failures so RevenueCat retries, 200 for events that can never succeed.
 * Entitlement check against the RevenueCat v1 REST API with ACTIVE, INACTIVE, NOT_FOUND and UNKNOWN states, a Redis cache and one retry on server errors.
 * `POST /subscription/sync` that binds a RevenueCat id only after RevenueCat confirms it, yields to webhook state and handles concurrent binds.
+* `REVENUECAT_REQUIRE_USER_ID_MATCH`, on by default: sync only binds the signed in user's id or an id RevenueCat aliases to it, so a known id cannot be used to take over a subscription.
 * `require_premium` and `charge(feature)` dependencies with weighted daily quotas.
 * Reconcile job that reports and optionally fixes drift between the database and RevenueCat.
 * Minimal JWT auth with a debug only token endpoint.

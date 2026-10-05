@@ -65,7 +65,13 @@ async def premium_for_user(http: httpx.AsyncClient, redis: Redis, user: User) ->
 
 
 async def bind_app_user_id(
-    db: AsyncSession, http: httpx.AsyncClient, redis: Redis, user: User, candidate: str
+    db: AsyncSession,
+    http: httpx.AsyncClient,
+    redis: Redis,
+    user: User,
+    candidate: str,
+    *,
+    owner_id: str | None = None,
 ) -> bool:
     """Bind `candidate` to `user` if RevenueCat says it is active right now.
 
@@ -74,6 +80,15 @@ async def bind_app_user_id(
     is_premium and the expiry alone. If another user holds the id, the
     binding moves. That is what a restore on a new account looks like, and
     it is logged as a warning.
+
+    Args:
+        db: Session for the bind.
+        http: HTTP client for RevenueCat.
+        redis: Redis client for the entitlement cache.
+        user: The signed in user.
+        candidate: RevenueCat app user id to bind.
+        owner_id: When set, RevenueCat must list this id as `candidate`
+            itself, its original_app_user_id or one of its aliases.
 
     Returns:
         True when RevenueCat confirmed the entitlement and the id is bound
@@ -90,6 +105,9 @@ async def bind_app_user_id(
             "Not binding RevenueCat id",
             extra={**log_extra, "status": entitlement.status.value},
         )
+        return False
+    if owner_id is not None and owner_id not in entitlement.customer_ids:
+        logger.warning("RevenueCat id belongs to another customer, not binding", extra=log_extra)
         return False
 
     try:

@@ -29,6 +29,7 @@ class Settings(BaseSettings):
     revenuecat_timeout_seconds: float = 10.0
     revenuecat_retry_delay_seconds: float = 0.5
     allow_sandbox_subscriptions: bool = False
+    revenuecat_require_user_id_match: bool = True
     entitlement_cache_ttl_seconds: int = 300
     store_webhook_payloads: bool = True
     lock_timeout_ms: int = 3000

@@ -14,9 +14,14 @@ class SyncRequest(BaseModel):
         json_schema_extra={"examples": [{"app_user_id": "6f1c2a7e-3b0d-4c55-9a8e-2f4b1d7c9e10"}]}
     )
 
-    app_user_id: str = Field(
+    app_user_id: str | None = Field(
+        default=None,
         max_length=APP_USER_ID_MAX_LENGTH,
-        description="Purchases.shared.appUserID from the RevenueCat SDK.",
+        description=(
+            "Purchases.shared.appUserID from the RevenueCat SDK. Optional when "
+            "REVENUECAT_REQUIRE_USER_ID_MATCH is on, where the server checks the "
+            "signed in user's id."
+        ),
     )
 
 

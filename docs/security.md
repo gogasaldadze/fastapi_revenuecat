@@ -26,9 +26,11 @@ Attackers can run the app on a jailbroken device, read and change every request 
 
 ### Taking over someone else's subscription
 
-*Attack:* learn another user's RevenueCat id and call `/subscription/sync` with it. The id would move to the attacker.
+*Attack:* learn another user's RevenueCat id (from a log, a support ticket, a shared device) and call `/subscription/sync` with it, so the subscription moves to the attacker's account.
 
-*Mitigation:* the sync only binds ids RevenueCat reports as active, and every move is logged as a warning with both user ids. The remaining risk is someone who knows a paying user's id. Anonymous ids are random and hard to guess. The strongest setup is to call `Purchases.logIn` with your own user id and reject syncs where `app_user_id` does not equal the caller's id; this is listed on the roadmap as a setting.
+*Mitigation:* with `REVENUECAT_REQUIRE_USER_ID_MATCH=true`, the default, the sync only binds the signed in user's own id. The app calls `Purchases.logIn` with that id, so the server never needs the client to name one. A different id is accepted only when RevenueCat itself lists the user's id as its `original_app_user_id` or one of its `aliases`, which covers a purchase made before `logIn`. A stranger's id fails that check and is logged as a warning.
+
+**Legacy mode.** `REVENUECAT_REQUIRE_USER_ID_MATCH=false` binds any id RevenueCat reports as active and moves it away from whoever held it. That is what an app on anonymous ids needs, because the server cannot tell a restore on a new device from a stolen id. It also means anyone who learns an active id can take the subscription. Use it only while migrating such an app to `logIn` with your own user ids, watch the "RevenueCat id moved from another user" warnings while it is on, and switch it back once current app versions call `logIn`.
 
 ### Quota abuse
 

@@ -31,7 +31,7 @@ Runtime pieces:
 |---|---|---|
 | Is this RevenueCat id active right now? | RevenueCat REST | Cached briefly. Called before any route that needs premium. |
 | What happened to a subscription? | Webhook | Moves the stored mirror forward. The only writer once it has touched a row. |
-| Which RevenueCat id belongs to which user? | Verified sync | A client sends the id; the server binds it only after REST confirms it is active. |
+| Which RevenueCat id belongs to which user? | Verified sync | By default the user's own id, or one RevenueCat aliases to it, bound only after REST confirms it is active. |
 | What the client says | Nobody | A client can ask the server to check. It can never set premium itself. |
 
 The stored mirror (`is_premium`, `premium_expires_at`) is used in two cases: users without a RevenueCat id (accounts you grant by hand) and RevenueCat outages. In both cases the expiry is enforced.
@@ -137,7 +137,7 @@ sequenceDiagram
     API-->>App: {"is_premium": true}
 ```
 
-The sync is what binds the id. TRANSFER only moves premium between users that are already bound, so it never hands an account to someone by itself.
+The sync is what binds the id, and by default only an id that is the user's own or that RevenueCat aliases to it. TRANSFER only moves premium between users that are already bound, so it never hands an account to someone by itself.
 
 ## Concurrency
 

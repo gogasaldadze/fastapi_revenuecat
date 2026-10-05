@@ -12,7 +12,7 @@ UNKNOWN is never cached, so the next request tries RevenueCat again.
 
 import asyncio
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime
 from enum import StrEnum
 from typing import Any
@@ -43,6 +43,8 @@ class Entitlement:
 
     status: EntitlementStatus
     expires_at: datetime | None = None
+    # Every app user id RevenueCat links to this customer.
+    customer_ids: tuple[str, ...] = ()
 
     @property
     def active(self) -> bool:
@@ -74,6 +76,17 @@ def is_sandbox_product(subscriber: dict[str, Any], product_id: str | None) -> bo
         return bool(subscription.get("is_sandbox"))
     purchases = (subscriber.get("non_subscriptions") or {}).get(product_id) or []
     return bool(purchases) and all(p.get("is_sandbox") for p in purchases)
+
+
+def customer_ids(subscriber: dict[str, Any], requested_id: str) -> tuple[str, ...]:
+    """The requested id plus original_app_user_id and aliases, deduplicated."""
+    aliases = subscriber.get("aliases")
+    raw = [
+        requested_id,
+        subscriber.get("original_app_user_id"),
+        *(aliases if isinstance(aliases, list) else []),
+    ]
+    return tuple(dict.fromkeys(r for r in raw if isinstance(r, str) and r))
 
 
 def read_entitlement(
@@ -154,12 +167,13 @@ async def fetch_entitlement(http: httpx.AsyncClient, app_user_id: str) -> Entitl
         logger.warning("RevenueCat returned an unreadable body", extra=log_extra)
         return UNKNOWN
 
-    return read_entitlement(
+    entitlement = read_entitlement(
         subscriber,
         settings.revenuecat_entitlement_id,
         utcnow(),
         allow_sandbox=settings.sandbox_allowed,
     )
+    return replace(entitlement, customer_ids=customer_ids(subscriber, app_user_id))
 
 
 def _cache_ttl(entitlement: Entitlement) -> int:
@@ -173,7 +187,11 @@ def _cache_ttl(entitlement: Entitlement) -> int:
 
 def _to_cache(entitlement: Entitlement) -> dict[str, Any]:
     expires = entitlement.expires_at.isoformat() if entitlement.expires_at else None
-    return {"status": entitlement.status.value, "expires_at": expires}
+    return {
+        "status": entitlement.status.value,
+        "expires_at": expires,
+        "customer_ids": list(entitlement.customer_ids),
+    }
 
 
 def _from_cache(value: dict[str, Any]) -> Entitlement | None:
@@ -183,7 +201,12 @@ def _from_cache(value: dict[str, Any]) -> Entitlement | None:
         return None
     if status is EntitlementStatus.UNKNOWN:
         return None
-    return Entitlement(status, parse_rc_date(value.get("expires_at")))
+    ids = value.get("customer_ids")
+    return Entitlement(
+        status,
+        parse_rc_date(value.get("expires_at")),
+        tuple(i for i in ids if isinstance(i, str)) if isinstance(ids, list) else (),
+    )
 
 
 async def check_entitlement(
