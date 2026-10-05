@@ -19,3 +19,24 @@ select = ["E", "F", "W", "I", "B", "UP", "SIM", "ASYNC"]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 testpaths = ["tests"]
+
+[tool.coverage.run]
+source = ["app"]
+branch = true
+# SQLAlchemy's async layer runs on greenlets.
+concurrency = ["greenlet", "thread"]
+
+[tool.coverage.report]
+fail_under = 90
+show_missing = true
+skip_empty = true
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+plugins = ["pydantic.mypy"]
+files = ["app", "migrations"]
+
+[[tool.mypy.overrides]]
+module = ["respx.*", "fakeredis.*"]
+ignore_missing_imports = true

@@ -46,6 +46,7 @@ def verify_authorization(authorization: str) -> None:
 @router.post(
     "/revenuecat",
     summary="Receive RevenueCat webhook events",
+    response_model_exclude_none=True,
     responses={
         401: {"model": ErrorResponse, "description": "Wrong Authorization header"},
         503: {"model": ErrorResponse, "description": "Webhook secret not configured"},

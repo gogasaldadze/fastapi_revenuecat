@@ -162,7 +162,7 @@ def _to_cache(entitlement: Entitlement) -> dict[str, Any]:
 
 def _from_cache(value: dict[str, Any]) -> Entitlement | None:
     try:
-        status = EntitlementStatus(value.get("status"))
+        status = EntitlementStatus(str(value.get("status")))
     except ValueError:
         return None
     if status is EntitlementStatus.UNKNOWN:

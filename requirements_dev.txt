@@ -5,3 +5,5 @@ respx==0.23.1
 fakeredis==2.39.0
 aiosqlite==0.22.1
 ruff==0.16.10
+pytest-cov==7.1.0
+mypy==2.4.0
