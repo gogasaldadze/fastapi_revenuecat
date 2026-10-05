@@ -27,9 +27,11 @@ class Settings(BaseSettings):
     revenuecat_entitlement_id: str = "premium"
     revenuecat_api_url: str = "https://api.revenuecat.com/v1"
     revenuecat_timeout_seconds: float = 10.0
+    revenuecat_retry_delay_seconds: float = 0.5
     allow_sandbox_subscriptions: bool = False
     entitlement_cache_ttl_seconds: int = 300
-    store_webhook_events: bool = True
+    store_webhook_payloads: bool = True
+    lock_timeout_ms: int = 3000
 
     free_daily_units: int = 20
     premium_daily_units: int = 1000

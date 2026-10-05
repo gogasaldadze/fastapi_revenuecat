@@ -23,6 +23,7 @@ def upgrade() -> None:
         sa.Column("rc_app_user_id", sa.String(length=255), nullable=True),
         sa.Column("is_premium", sa.Boolean(), server_default=sa.false(), nullable=False),
         sa.Column("premium_expires_at", sa.DateTime(timezone=True), nullable=True),
+        sa.Column("rc_last_event_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column(
             "created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
         ),
@@ -45,27 +46,27 @@ def upgrade() -> None:
             autoincrement=True,
             nullable=False,
         ),
-        sa.Column("event_id", sa.String(length=64), nullable=True),
+        sa.Column("event_id", sa.String(length=64), nullable=False),
         sa.Column("event_type", sa.String(length=64), nullable=False),
         sa.Column("bucket", sa.String(length=32), nullable=False),
         sa.Column("app_user_id", sa.String(length=255), nullable=True),
         sa.Column("product_id", sa.String(length=255), nullable=True),
         sa.Column("store", sa.String(length=32), nullable=True),
         sa.Column("environment", sa.String(length=32), nullable=True),
+        sa.Column("event_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("expiration_at", sa.DateTime(timezone=True), nullable=True),
-        sa.Column("payload", sa.Text(), nullable=False),
+        sa.Column("payload", sa.Text(), nullable=True),
         sa.Column(
             "received_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
         ),
         sa.PrimaryKeyConstraint("id"),
+        sa.UniqueConstraint("event_id"),
     )
-    op.create_index("ix_subscription_events_event_id", "subscription_events", ["event_id"])
     op.create_index("ix_subscription_events_app_user_id", "subscription_events", ["app_user_id"])
 
 
 def downgrade() -> None:
     op.drop_index("ix_subscription_events_app_user_id", table_name="subscription_events")
-    op.drop_index("ix_subscription_events_event_id", table_name="subscription_events")
     op.drop_table("subscription_events")
     op.drop_index("uq_users_rc_app_user_id", table_name="users")
     op.drop_table("users")

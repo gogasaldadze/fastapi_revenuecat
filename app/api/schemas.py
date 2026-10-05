@@ -61,11 +61,11 @@ class TokenResponse(BaseModel):
 
 
 class WebhookAck(BaseModel):
-    """Webhook reply. Always sent with 200 once auth has passed."""
+    """Webhook reply for events that were processed or deliberately skipped."""
 
     model_config = ConfigDict(json_schema_extra={"examples": [{"status": "ok", "bucket": "sync"}]})
 
-    status: Literal["ok", "ignored", "error_logged"]
+    status: Literal["ok", "duplicate", "ignored"]
     bucket: str | None = None
 
 

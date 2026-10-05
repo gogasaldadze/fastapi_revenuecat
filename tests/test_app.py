@@ -168,3 +168,22 @@ async def test_real_dependencies_resolve_from_app_state():
     session = await anext(sessions)
     assert session is not None
     await sessions.aclose()
+
+
+async def test_lock_timeout_is_set_on_postgres(monkeypatch):
+    from types import SimpleNamespace
+
+    from app.db.locks import set_lock_timeout
+
+    monkeypatch.setattr(settings, "lock_timeout_ms", 1500)
+    executed: list[str] = []
+
+    class FakeSession:
+        def get_bind(self):
+            return SimpleNamespace(dialect=SimpleNamespace(name="postgresql"))
+
+        async def execute(self, statement):
+            executed.append(str(statement))
+
+    await set_lock_timeout(FakeSession())
+    assert executed == ["SET LOCAL lock_timeout = 1500"]

@@ -11,7 +11,8 @@ from app.core.clients import RedisClient
 from app.core.config import settings
 from app.core.errors import AppError, ErrorResponse
 from app.db.session import DbSession
-from app.services.webhook_events import process_event
+from app.services.webhook_events import parse_event
+from app.services.webhook_processor import process_event
 
 logger = logging.getLogger(__name__)
 
@@ -49,7 +50,10 @@ def verify_authorization(authorization: str) -> None:
     response_model_exclude_none=True,
     responses={
         401: {"model": ErrorResponse, "description": "Wrong Authorization header"},
-        503: {"model": ErrorResponse, "description": "Webhook secret not configured"},
+        503: {
+            "model": ErrorResponse,
+            "description": "Secret not configured, or a temporary failure. RevenueCat retries.",
+        },
     },
 )
 async def revenuecat_webhook(
@@ -58,26 +62,37 @@ async def revenuecat_webhook(
     redis: RedisClient,
     authorization: Annotated[str, Header()] = "",
 ) -> WebhookAck:
-    """Auth problems get 401 or 503. Anything else is logged and answered with 200.
+    """Status codes are chosen for RevenueCat's retry logic.
 
-    RevenueCat retries a failed delivery five times over about two and a half
-    hours, and a broken handler would fail the same way every time.
+    * 200 for anything processed or deliberately skipped: duplicates, unknown
+      types, sandbox events in production, ids nobody has bound, and payloads
+      that can never be processed. Retrying those would not change anything.
+    * 503 for temporary failures such as a database outage or a lock timeout,
+      so RevenueCat delivers the event again later.
     """
     verify_authorization(authorization)
 
     try:
         payload = json.loads(await request.body())
-        event = payload.get("event") if isinstance(payload, dict) else None
-        if not isinstance(event, dict):
-            logger.warning("RevenueCat webhook without an event object, ignored")
-            return WebhookAck(status="ignored")
-        bucket = await process_event(db, redis, event)
-    except Exception:
-        logger.exception("RevenueCat webhook handler failed")
-        await _safe_rollback(db)
-        return WebhookAck(status="error_logged")
+    except ValueError:
+        logger.warning("RevenueCat webhook body is not JSON, ignored")
+        return WebhookAck(status="ignored")
+    event = parse_event(payload.get("event") if isinstance(payload, dict) else None)
+    if event is None:
+        logger.warning("RevenueCat webhook without a usable event object, ignored")
+        return WebhookAck(status="ignored")
 
-    return WebhookAck(status="ok", bucket=bucket.value)
+    try:
+        result = await process_event(db, redis, event)
+    except Exception as exc:
+        logger.exception(
+            "RevenueCat webhook failed, asking for a retry", extra={"event_id": event.id}
+        )
+        await _safe_rollback(db)
+        raise AppError(503, "webhook_retry", "Temporary failure, please retry") from exc
+
+    status = "duplicate" if result.duplicate else "ok"
+    return WebhookAck(status=status, bucket=result.bucket.value)
 
 
 async def _safe_rollback(db: AsyncSession) -> None:

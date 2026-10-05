@@ -47,7 +47,8 @@ def prod_settings(monkeypatch):
     monkeypatch.setattr(settings, "allow_sandbox_subscriptions", False)
     monkeypatch.setattr(settings, "revenuecat_secret_key", "sk_test")
     monkeypatch.setattr(settings, "revenuecat_webhook_secret", WEBHOOK_SECRET)
-    monkeypatch.setattr(settings, "store_webhook_events", True)
+    monkeypatch.setattr(settings, "store_webhook_payloads", True)
+    monkeypatch.setattr(settings, "revenuecat_retry_delay_seconds", 0)
     monkeypatch.setattr(settings, "free_daily_units", 20)
     monkeypatch.setattr(settings, "premium_daily_units", 1000)
     monkeypatch.setattr(settings, "feature_weights", {"basic": 1, "heavy": 10})
@@ -106,12 +107,14 @@ async def make_user(
     rc_app_user_id: str | None = None,
     is_premium: bool = False,
     premium_expires_at: datetime | None = None,
+    rc_last_event_at: datetime | None = None,
 ) -> User:
     async with session_maker() as session:
         user = User(
             rc_app_user_id=rc_app_user_id,
             is_premium=is_premium,
             premium_expires_at=premium_expires_at,
+            rc_last_event_at=rc_last_event_at,
         )
         session.add(user)
         await session.commit()
