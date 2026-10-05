@@ -16,6 +16,7 @@ RUN pip install -r requirements.txt
 COPY alembic.ini .
 COPY migrations ./migrations
 COPY app ./app
+COPY scripts ./scripts
 
 USER appuser
 
