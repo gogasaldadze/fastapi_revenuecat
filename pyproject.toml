@@ -35,7 +35,7 @@ skip_empty = true
 python_version = "3.12"
 strict = true
 plugins = ["pydantic.mypy"]
-files = ["app", "migrations"]
+files = ["app", "migrations", "scripts"]
 
 [[tool.mypy.overrides]]
 module = ["respx.*", "fakeredis.*"]
