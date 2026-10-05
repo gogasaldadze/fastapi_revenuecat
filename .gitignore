@@ -9,3 +9,5 @@ venv/
 htmlcov/
 *.db
 .DS_Store
+coverage.xml
+.mypy_cache/

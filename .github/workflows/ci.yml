@@ -1,0 +1,42 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements_dev.txt
+
+      - name: Install
+        run: pip install -r requirements_dev.txt
+
+      - name: Ruff
+        run: |
+          ruff check .
+          ruff format --check .
+
+      - name: Mypy
+        run: mypy
+
+      - name: Pytest with coverage
+        run: pytest --cov --cov-report=term-missing --cov-report=xml
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Build image
+        run: docker build -t fastapi_revenuecat .
