@@ -10,6 +10,7 @@ The v1 endpoint works with a plain secret key. How responses map to a status:
 UNKNOWN is never cached, so the next request tries RevenueCat again.
 """
 
+import asyncio
 import logging
 from dataclasses import dataclass
 from datetime import datetime
@@ -108,6 +109,27 @@ def read_entitlement(
     return INACTIVE
 
 
+async def _get_subscriber(http: httpx.AsyncClient, app_user_id: str) -> httpx.Response | None:
+    """GET the subscriber, retrying once on a network error or a 5xx."""
+    url = f"{settings.revenuecat_api_url}/subscribers/{quote(app_user_id, safe='')}"
+    headers = {"Authorization": f"Bearer {settings.revenuecat_secret_key}"}
+    log_extra = {"app_user_id": app_user_id}
+    for attempt in (1, 2):
+        try:
+            resp = await http.get(url, headers=headers)
+        except httpx.HTTPError as exc:
+            logger.warning(
+                "RevenueCat request failed",
+                extra={**log_extra, "attempt": attempt, "error": str(exc)},
+            )
+            resp = None
+        if resp is not None and resp.status_code < 500:
+            return resp
+        if attempt == 1:
+            await asyncio.sleep(settings.revenuecat_retry_delay_seconds)
+    return resp
+
+
 async def fetch_entitlement(http: httpx.AsyncClient, app_user_id: str) -> Entitlement:
     """Ask RevenueCat directly, without the cache."""
     log_extra = {"app_user_id": app_user_id}
@@ -115,15 +137,9 @@ async def fetch_entitlement(http: httpx.AsyncClient, app_user_id: str) -> Entitl
         logger.warning("REVENUECAT_SECRET_KEY not set, cannot verify", extra=log_extra)
         return UNKNOWN
 
-    url = f"{settings.revenuecat_api_url}/subscribers/{quote(app_user_id, safe='')}"
-    try:
-        resp = await http.get(
-            url, headers={"Authorization": f"Bearer {settings.revenuecat_secret_key}"}
-        )
-    except httpx.HTTPError as exc:
-        logger.warning("RevenueCat request failed", extra={**log_extra, "error": str(exc)})
+    resp = await _get_subscriber(http, app_user_id)
+    if resp is None:
         return UNKNOWN
-
     if resp.status_code == 404:
         return NOT_FOUND
     if resp.status_code != 200:

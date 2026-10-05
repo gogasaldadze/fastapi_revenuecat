@@ -101,6 +101,25 @@ async def test_fetch_status_mapping(rc, http, status, body, expected):
 async def test_network_error_is_unknown(rc, http):
     rc.network_error = True
     assert (await fetch_entitlement(http, "u1")).status is EntitlementStatus.UNKNOWN
+    assert rc.calls == ["u1", "u1"]
+
+
+async def test_server_error_is_retried_once(http):
+    import httpx
+    import respx
+
+    with respx.mock:
+        route = respx.get(url__startswith="https://api.revenuecat.com").mock(
+            side_effect=[httpx.Response(502), httpx.Response(200, json=active())]
+        )
+        assert (await fetch_entitlement(http, "u1")).active
+        assert route.call_count == 2
+
+
+async def test_client_errors_are_not_retried(rc, http):
+    rc.set("u1", 401, {})
+    await fetch_entitlement(http, "u1")
+    assert rc.calls == ["u1"]
 
 
 async def test_missing_secret_key_is_unknown(rc, http, monkeypatch):
@@ -146,7 +165,8 @@ async def test_unknown_is_never_cached(rc, http, redis):
     rc.set("u1", 503, {})
     await check_entitlement(http, redis, "u1")
     await check_entitlement(http, redis, "u1")
-    assert rc.calls == ["u1", "u1"]
+    # One retry per check, and nothing cached in between.
+    assert rc.calls == ["u1"] * 4
     assert await redis.get(cache_key("u1")) is None
 
 
