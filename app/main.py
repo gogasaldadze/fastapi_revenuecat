@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from app.clients import create_http_client, create_redis
 from app.config import settings
 from app.db import engine
-from app.routers import auth, webhooks
+from app.routers import auth, subscription, webhooks
 
 logging.basicConfig(
     level=logging.DEBUG if settings.debug else logging.INFO,
@@ -30,6 +30,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="FastAPI RevenueCat", lifespan=lifespan)
 app.include_router(auth.router)
+app.include_router(subscription.router)
 app.include_router(webhooks.router)
 
 
